@@ -25,11 +25,6 @@ def build_4vec(pt, eta, phi, mass):
     return vector.obj(pt=pt, eta=eta, phi=phi, mass=mass)
 
 
-def mother_pdg(j):
-    m = int(midx_evt[j])
-    return int(pdg_evt[m]) if m >= 0 else None
-
-
 def expand_columns_vectors(df):
     vector_cols = []
     for col in df.columns:
@@ -81,9 +76,14 @@ def read_files(file_list, output_root):
                 phi_evt   = Gen_phi[i]
                 mass_evt  = Gen_mass[i]
 
+                def mother_pdg(j):
+                    m = int(midx_evt[j])
+                    return int(pdg_evt[m]) if m >= 0 else None
+
                 #-------------------------------------------------- VB decay - GenPart --------------------------------------------------
 
                 for j in range(len(pdg_evt)):
+
                     pid = int(pdg_evt[j])
                     mother = mother_pdg(j)
 
@@ -97,8 +97,11 @@ def read_files(file_list, output_root):
                                 pid_k = int(pdg_evt[k])
                                 daughters_VB.append(pdg_to_Name(pid_k))
                                 vec = build_4vec(float(pt_evt[k]), float(eta_evt[k]), float(phi_evt[k]), float(mass_evt[k]))
-                                if pid_k > 0: lep_vec = vec
-                                else: antilep_vec = vec
+
+                                if pid_k > 0: 
+                                    lep_vec = vec
+                                else: 
+                                    antilep_vec = vec
 
                     if abs(pid) == 24 and mother != 25:
                         event_type = "W+/-"
@@ -110,11 +113,19 @@ def read_files(file_list, output_root):
                                 pid_k = int(pdg_evt[k])
                                 daughters_VB.append(pdg_to_Name(pid_k))
                                 vec = build_4vec(float(pt_evt[k]), float(eta_evt[k]), float(phi_evt[k]), float(mass_evt[k]))
-                                if pid_k > 0: lep_vec = vec
-                                else: antilep_vec = vec
+
+                                if pid_k > 0: 
+                                    lep_vec = vec
+                                else: 
+                                    antilep_vec = vec
 
                 if len(daughters_VB) == 0:
-                    VB_decay = "v v~ / tau+ tau-" if event_type=="Z" else "tau v" if event_type=="W+/-" else ""
+
+                    if event_type=="Z":
+                        VB_decay = "v v~ / tau+ tau-"  
+                    if event_type=="W+/-":
+                        VB_decay = "tau v"
+
                 else:
                     VB_decay = " + ".join(daughters_VB)
 
@@ -140,15 +151,15 @@ def read_files(file_list, output_root):
                 #------------------------------------------------------- add to df ------------------------------------------------------
 
                 row = {
-                    "event": event_number-1,
-                    "lep_vec": lep_vec,
-                    "antilep_vec": antilep_vec,
-                    "d1_vec": d1_vec,
-                    "d2_vec": d2_vec,
-                    "h decay": decay,
-                    "event type": event_type,
-                    "VB decay": VB_decay
-                }
+                       "event": event_number-1,
+                       "lep_vec": lep_vec,
+                       "antilep_vec": antilep_vec,
+                       "d1_vec": d1_vec,
+                       "d2_vec": d2_vec,
+                       "h_decay": decay,
+                       "event type": event_type,
+                       "VB_decay": VB_decay
+                      }
                 rows.append(row)
 
     df = pd.DataFrame(rows)                             #create pandas df
@@ -165,8 +176,7 @@ def main():
         print("use example: python3 script.py <folder_path>")
         sys.exit(1)
 
-    folder = sys.argv[1]   
-    
+    folder = sys.argv[1] 
     files = sorted(glob.glob(os.path.join(folder, "*.root")))
 
     n_blocks = 20
