@@ -165,7 +165,7 @@ def main():
         print("use example: python3 script.py <folder_path>")
         sys.exit(1)
 
-    folder = sys.argv[1]   # prende il primo argomento dopo il nome dello script
+    folder = sys.argv[1]   
     
     files = sorted(glob.glob(os.path.join(folder, "*.root")))
 
