@@ -36,8 +36,136 @@ def main():
               .Define("vec_h", "d1_vec + d2_vec")
              )
 
-    #------------------------------------------ charged lepton selection ------------------------------------------
+    #------------------------------------------------ ZH/WH Cutflow -----------------------------------------------
     
+    ##############################################
+    # Define cuts
+    ##############################################
+
+    df_zh_f = (df_tot
+                .Define("cut0_ZH", "event_type == \"Z\"")
+                .Define("cut_e_mu_ZH", '(event_type == \"Z\") && (VB_decay != "v v~ / tau+ tau-") && (VB_decay != "tau v")')
+                .Define("cut1_ZH", " (event_type == \"Z\") && (vec_h.Pt() > 40)")
+                .Define("cut2_ZH", " (event_type == \"Z\") && (vec_h.Eta() < 2.1)")
+              )
+
+    df_wh_f = (df_tot
+                .Define("cut0_WH", "event_type == \"W+/-\"")
+                .Define("cut_e_mu_WH", ' (event_type == \"W+/-\") && (VB_decay != "v v~ / tau+ tau-") && (VB_decay != "tau v")')
+                .Define("cut1_WH", " (event_type == \"W+/-\") && (vec_h.Pt() > 40) ")
+                .Define("cut2_WH", " (event_type == \"W+/-\") && (vec_h.Eta() < 2.1)")
+                )
+                
+       
+    ##############################################
+    # Filter dataframe
+    ##############################################
+
+    df_zh_sel = (df_zh_f
+                .Filter("cut0_ZH", "Z evts selection")
+                .Filter("cut_e_mu_ZH", "e/muon events")
+                .Filter("cut1_ZH", "Pt Higgs > 40")
+                .Filter("cut2_ZH", "Eta Higgs < 2.1")
+                )
+    
+    df_wh_sel = (df_wh_f
+                .Filter("cut0_WH", "W evts selection")
+                .Filter("cut_e_mu_WH", "e/muon events")
+                .Filter("cut1_WH", "Pt Higgs > 40")
+                .Filter("cut2_WH", "Eta Higgs < 2.1")
+                )
+
+    print("\n======================================== WH CutFlow Report ========================================")
+    rep_wh = df_wh_sel.Report()
+
+    print("\n======================================== ZH CutFlow Report ========================================")
+    rep_zh = df_zh_sel.Report()
+
+
+    #------------------------------------------------ Print report -----------------------------------------------
+
+
+    report_array_wh = []
+    report_array_zh = []
+
+    n_tot = df_wh_f.Count().GetValue()
+    pass_prec = n_tot
+    cut_list = ["cut0", "cut_e_mu", "cut1", "cut2"]
+
+    i = 0
+    for cut in rep_wh:
+        cut_from_list = cut_list[i] + "_WH"
+        name = cut.GetName()
+        N_evt = cut.GetPass()
+        part_eff = N_evt / pass_prec                                    # Ni / N_{i-1}
+        cumul_eff = N_evt / n_tot                                       # Ni / N_tot
+        n_cut_only = df_wh_f.Filter(cut_from_list).Count().GetValue()   
+        tot_eff = n_cut_only / n_tot                                    # No / N_tot
+        report_array_wh.append([
+                                cut_list[i],
+                                part_eff,      
+                                cumul_eff,     
+                                tot_eff        
+                               ])
+        pass_prec = N_evt
+        i += 1
+
+    n_tot = df_zh_f.Count().GetValue()
+    pass_prec = n_tot
+
+    i = 0
+    for cut in rep_zh:
+        cut_from_list = cut_list[i] + "_ZH"
+        name = cut.GetName()
+        N_evt = cut.GetPass()
+        part_eff = N_evt / pass_prec
+        cumul_eff = N_evt / n_tot
+        n_cut_only = df_zh_f.Filter(cut_from_list).Count().GetValue()
+        tot_eff = n_cut_only / n_tot
+        report_array_zh.append([
+                                cut_list[i],
+                                part_eff,      
+                                cumul_eff,     
+                                tot_eff        
+                               ])
+        pass_prec = N_evt
+        i += 1
+
+    report_array_wh = np.array(report_array_wh, dtype=object)
+    report_array_zh = np.array(report_array_zh, dtype=object)
+
+    rows = []
+    for i in range(len(report_array_wh)):
+        rows.append(
+                    [
+                    report_array_zh[i][0],
+                    report_array_zh[i][1],           #zh partial eff
+                    report_array_zh[i][2],           #zh cumulative eff
+                    report_array_zh[i][3],           #zh total eff
+                    report_array_wh[i][1],           #wh partial eff
+                    report_array_wh[i][2],           #wh cumulative eff
+                    report_array_wh[i][3]            #wh total eff
+                    ]            
+                   )
+
+    columns  = [
+                "",
+                "ZH partial eff", "ZH cumulative eff", "ZH total eff",
+                "WH partial eff", "WH cumulative eff", "WH total eff"
+                ]
+
+    df_VH = pd.DataFrame(rows, columns = columns)
+
+    print("\n" + "\u2550"*128)
+    print("{:^128}".format("H > tau+ tau-   -  [all cuts efficiency]"))
+    print("\u2550"*128 + "\n")
+
+    print(tabulate(df_VH.values.tolist(), headers=df_VH.columns.tolist(), colalign=["center"] * len(df_VH.columns), tablefmt="fancy_grid", floatfmt=".3f"))
+
+if __name__ == "__main__":
+    main()
+
+    '''
     df_tot = df_tot.Define("cut_e_mu", '(VB_decay != "v v~ / tau+ tau-") && (VB_decay != "tau v")')
     df_e_mu = df_tot.Filter("cut_e_mu")
 
@@ -172,3 +300,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    '''
