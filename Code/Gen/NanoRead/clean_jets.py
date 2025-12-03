@@ -42,7 +42,10 @@ def main():
         GJet_h_flav = tree["GenJet_hadronFlavour"].array(library="ak")
 
 
-        for i in range(10):
+        for i in range(10):                                                             #loop over events
+            index_list = []                                                        
+            e_counter = 0
+            mu_counter = 0
 
             pdg_evt   = Gen_pdg[i]
             midx_evt  = Gen_midx[i]
@@ -62,39 +65,63 @@ def main():
                 m = int(midx_evt[j])
                 return int(pdg_evt[m]) if m >= 0 else None
 
-            for n in range(len(pdg_evt)):
+            for n in range(len(pdg_evt)):                                               #loop over particles in GenPart
 
                 pid = int(pdg_evt[n])
                 mother = mother_pdg(n)
 
-                if abs(pid) == 11 and mother in [23, 24, -24]:      #electron/positron
+                if abs(pid) == 11 and mother in [23, 24, -24]:                          #electron/positron from Z/W
+                    e_counter += 1
                     e_idx = [k for k in range(len(pdg_evt)) if pdg_evt[k] == pid]
                     e_vec = build_4vec_from_pt_eta_phi_m(pt_evt[e_idx[0]], eta_evt[e_idx[0]], phi_evt[e_idx[0]], mass_evt[e_idx[0]])
 
-                    for j in range(0, n_jets_evt-1):
+                    for j in range(n_jets_evt):                                         #loop over jets
                         jet_vec = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[j], GJet_eta_evt[j], GJet_phi_evt[j], GJet_mass_evt[j])
                         deltaR_ej = compute_deltaR(e_vec, jet_vec)
                         print(f"e j deltaR = {deltaR_ej}")
 
                         if deltaR_ej < 0.1:
-                            print(f"jet in position {j} is the e+/- jet")
-                            
+                            print(f"jet with index {j} is the e+/- jet")
+                            index_list.append(j)
+                           
 
 
-                if abs(pid) == 13 and mother in [23, 24, -24]:      #muon
+                if abs(pid) == 13 and mother in [23, 24, -24]:                          #muon from Z/W
+                    mu_counter += 1
                     mu_idx = [k for k in range(len(pdg_evt)) if pdg_evt[k] == pid]
-                    mu_vec = build_4vec_from_pt_eta_phi_m(pt_evt[mu_idx[0]], eta_evt[mu_idx[0]], phi_evt[mu_idx[0]], mass_evt[mu_idx[0]])
+                    mu_vec = build_4vec_from_pt_eta_phi_m(pt_evt[mu_idx[0]], eta_evt[mu_idx[0]], 
+                                                          phi_evt[mu_idx[0]], mass_evt[mu_idx[0]])
 
-                    for j in range(0, n_jets_evt-1):
-                        jet_vec = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[j], GJet_eta_evt[j], GJet_phi_evt[j], GJet_mass_evt[j])
+                    for j in range(n_jets_evt):                                         #loop over jets
+                        jet_vec = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[j], GJet_eta_evt[j], 
+                                                               GJet_phi_evt[j], GJet_mass_evt[j])
                         deltaR_muj = compute_deltaR(mu_vec, jet_vec)
                         print(f"mu j deltaR = {deltaR_muj}")
 
                         if deltaR_muj < 0.1:
-                            print(f"jet in position {j} is the mu+/- jet")
-                            
+                            print(f"jet with index {j} is the mu+/- jet")
+                            index_list.append(j)
 
-            print(f"\n---------------------------------------------- event {i} ----------------------------------------------")
+            print(f"\n---------------------------------------------- event {i} - before mask ----------------------------------------------")
+            print(f"electron, muon per event = {e_counter}, {mu_counter}")
+            print(f"n_jets = {n_jets_evt}")
+            print(f"GJet_pt = {GJet_pt_evt}")
+            print(f"GJet_eta = {GJet_eta_evt}")
+            print(f"GJet_phi = {GJet_phi_evt}")
+            print(f"GJet_mass = {GJet_mass_evt}")
+            print(f"GJet_h_flav = {GJet_h_flav_evt}")
+            
+            indices = ak.local_index(GJet_pt_evt)   
+            mask = np.isin(indices, index_list)    
+            
+            GJet_pt_evt   = ak.where(mask, 0, GJet_pt_evt)
+            GJet_eta_evt  = ak.where(mask, 0, GJet_eta_evt)
+            GJet_phi_evt  = ak.where(mask, 0, GJet_phi_evt)
+            GJet_mass_evt = ak.where(mask, 0, GJet_mass_evt)
+
+
+            print(f"\n---------------------------------------------- event {i} - after mask ----------------------------------------------")
+            print(f"electron, muon per event = {e_counter}, {mu_counter}")
             print(f"n_jets = {n_jets_evt}")
             print(f"GJet_pt = {GJet_pt_evt}")
             print(f"GJet_eta = {GJet_eta_evt}")
