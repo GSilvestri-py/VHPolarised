@@ -33,6 +33,101 @@ def is_b_hadron(pdgId):                     #return True if b hadron in event ->
                     ]
     return abs(pdgId) in b_hadrons
 
+def mother_pdg(j, midx_evt, pdg_evt):
+                m = int(midx_evt[j])
+                return int(pdg_evt[m]) if m >= 0 else None
+
+def higgs_decay(n, pdg_evt, midx_evt):
+    daughters_h = []
+    child_indices = [k for k in range(len(pdg_evt)) if int(midx_evt[k]) == n]
+
+    if len(child_indices) > 1:
+        daughters_h.extend(int(pdg_evt[k]) for k in child_indices)
+    return daughters_h
+
+def process_outline(n_lhe_evt, lhe_pdg_evt, lhe_status_evt, 
+                    pdg_evt, midx_evt):
+    
+    is_b_inevent = False
+    father, daughters = [], []
+    for j in range(n_lhe_evt):
+        pid = lhe_pdg_evt[j]
+        status = lhe_status_evt[j]
+
+        if status == -1:
+            father.append(pid)
+        if status == 1:
+            daughters.append(pid)
+    
+    daughters_h = []
+
+    for n in range(len(pdg_evt)):                                               #loop over particles in GenPart
+
+        pid = int(pdg_evt[n])
+        mother = mother_pdg(n, midx_evt, pdg_evt)
+
+        if pid == 25:
+            daughters_h = higgs_decay(n, pdg_evt, midx_evt)
+
+            if len(daughters_h) > 1:
+                print(f"{father[0]} + {father[1]} --> " + " + ".join(map(str, daughters)) + ", 25 > " + " + ".join(map(str, daughters_h))  )
+                print("\n")
+    return
+
+def electron_jet(pdg_evt, midx_evt, pt_evt, eta_evt, phi_evt, mass_evt,
+                 n_jets_evt, GJet_pt_evt, GJet_eta_evt, GJet_phi_evt, GJet_mass_evt,
+                 e_counter=0):
+    index_list = []
+
+    for n in range(len(pdg_evt)):  
+
+        pid = int(pdg_evt[n])
+        mother = mother_pdg(n, midx_evt, pdg_evt)
+
+        if abs(pid) == 11 and mother in [23, 24, -24]:  # electron/positron from Z/W
+            e_counter += 1
+            e_idx = [k for k in range(len(pdg_evt)) if pdg_evt[k] == pid]
+            if e_idx:
+                e_vec = build_4vec_from_pt_eta_phi_m(pt_evt[e_idx[0]], eta_evt[e_idx[0]],
+                                                    phi_evt[e_idx[0]], mass_evt[e_idx[0]])
+                for j in range(n_jets_evt):
+                    jet_vec = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[j], GJet_eta_evt[j],
+                                                        GJet_phi_evt[j], GJet_mass_evt[j])
+                    deltaR_ej = compute_deltaR(e_vec, jet_vec)
+                    if deltaR_ej < 0.1:
+                        print(f"jet {j} is the e± jet: ΔR = {deltaR_ej}")
+                        index_list.append(j)
+
+    return index_list, e_counter
+
+
+def muon_jet(pdg_evt, midx_evt, pt_evt, eta_evt, phi_evt, mass_evt,
+             n_jets_evt, GJet_pt_evt, GJet_eta_evt, GJet_phi_evt, GJet_mass_evt,
+             mu_counter=0):
+    index_list = []
+
+    for n in range(len(pdg_evt)):  
+
+        pid = int(pdg_evt[n])
+        mother = mother_pdg(n, midx_evt, pdg_evt)
+
+        if abs(pid) == 13 and mother in [23, 24, -24]:  # muon from Z/W
+            mu_counter += 1
+            mu_idx = [k for k in range(len(pdg_evt)) if pdg_evt[k] == pid]
+            if mu_idx:
+                mu_vec = build_4vec_from_pt_eta_phi_m(pt_evt[mu_idx[0]], eta_evt[mu_idx[0]],
+                                                    phi_evt[mu_idx[0]], mass_evt[mu_idx[0]])
+                for j in range(n_jets_evt):
+                    jet_vec = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[j], GJet_eta_evt[j],
+                                                        GJet_phi_evt[j], GJet_mass_evt[j])
+                    deltaR_muj = compute_deltaR(mu_vec, jet_vec)
+                    if deltaR_muj < 0.1:
+                        print(f"jet {j} is the μ± jet: ΔR = {deltaR_muj}")
+                        index_list.append(j)
+    
+    return index_list, mu_counter
+
+
 
 def main():
 
@@ -69,7 +164,7 @@ def main():
         VisTau_status = tree["GenVisTau_status"].array(library="ak")      
         
 
-        for i in range(130):                                                             #loop over events
+        for i in range(20):        #loop over events
 
             print(f"=============================================== EVENT {i} ===============================================")
 
@@ -109,27 +204,21 @@ def main():
             VisTau_status_evt = VisTau_status[i]
 
             print(f"\n------------------------------------------ process outline ------------------------------------------")
-            father, daughters = [], []
-            for j in range(n_lhe_evt):
-                pid = lhe_pdg_evt[j]
-                status = lhe_status_evt[j]
-
-                if status == -1:
-                    father.append(pid)
-                if status == 1:
-                    daughters.append(pid)
             
-            
-            def mother_pdg(j):
-                m = int(midx_evt[j])
-                return int(pdg_evt[m]) if m >= 0 else None
+            process_outline(n_lhe_evt, lhe_pdg_evt, lhe_status_evt, pdg_evt, midx_evt)
 
-            daughters_h = []
-            #clean e+/- mu+/- from GenJet
-            for n in range(len(pdg_evt)):                                               #loop over particles in GenPart
+            index_list_e, e_counter = electron_jet(pdg_evt, midx_evt, pt_evt, eta_evt, phi_evt, mass_evt, 
+                                                    n_jets_evt, GJet_pt_evt, GJet_eta_evt, GJet_phi_evt, GJet_mass_evt)
+                
+            index_list_mu, mu_counter = muon_jet(pdg_evt, midx_evt, pt_evt, eta_evt, phi_evt, mass_evt, 
+                                                    n_jets_evt, GJet_pt_evt, GJet_eta_evt, GJet_phi_evt, GJet_mass_evt)
+                
+            index_list = index_list_e + index_list_mu
+
+            for n in range(len(pdg_evt)):                     #loop over particles in GenPart
 
                 pid = int(pdg_evt[n])
-                mother = mother_pdg(n)
+                mother = mother_pdg(n, midx_evt, pdg_evt)
 
                 if abs(pid) == 15:
                     print(f"tau in event with mother {mother}")
@@ -137,48 +226,9 @@ def main():
                 if is_b_hadron(abs(pid)):
                     is_b_inevent = True
                     print(f"quark b in event")
-
-                if pid == 25:
-                    child_indices = [k for k in range(len(pdg_evt)) if int(midx_evt[k]) == n]
-
-                    if len(child_indices) > 1:
-                        daughters_h.extend(int(pdg_evt[k]) for k in child_indices)
-                        print(f"{father[0]} + {father[1]} --> " + " + ".join(map(str, daughters)) + ", 25 > " + " + ".join(map(str, daughters_h))  )
-                        print("\n")
-
-
-                if abs(pid) == 11 and mother in [23, 24, -24]:                          #electron/positron from Z/W
-                    e_counter += 1
-                    e_idx = [k for k in range(len(pdg_evt)) if pdg_evt[k] == pid]
-                    e_vec = build_4vec_from_pt_eta_phi_m(pt_evt[e_idx[0]], eta_evt[e_idx[0]], phi_evt[e_idx[0]], mass_evt[e_idx[0]])
-
-                    for j in range(n_jets_evt):                                         #loop over jets
-                        jet_vec = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[j], GJet_eta_evt[j], GJet_phi_evt[j], GJet_mass_evt[j])
-                        deltaR_ej = compute_deltaR(e_vec, jet_vec)
-
-                        if deltaR_ej < 0.1:
-                            print(f"jet with index {j} is the e+/- jet: e j deltaR = {deltaR_ej}")
-                            index_list.append(j)
-                           
-
-
-                if abs(pid) == 13 and mother in [23, 24, -24]:                          #muon from Z/W
-                    mu_counter += 1
-                    mu_idx = [k for k in range(len(pdg_evt)) if pdg_evt[k] == pid]
-                    mu_vec = build_4vec_from_pt_eta_phi_m(pt_evt[mu_idx[0]], eta_evt[mu_idx[0]], 
-                                                          phi_evt[mu_idx[0]], mass_evt[mu_idx[0]])
-
-                    for j in range(n_jets_evt):                                         #loop over jets
-                        jet_vec = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[j], GJet_eta_evt[j], 
-                                                               GJet_phi_evt[j], GJet_mass_evt[j])
-                        deltaR_muj = compute_deltaR(mu_vec, jet_vec)
-
-                        if deltaR_muj < 0.1:
-                            print(f"jet with index {j} is the mu+/- jet: mu j deltaR = {deltaR_muj}")
-                            index_list.append(j)
             
-           
-            #clean tau jets from GenJet
+            '''
+            #clean tau jets from GenJet -> ?
             for j_t in range(n_jets_vistau_evt):
                 j_t_vec = build_4vec_from_pt_eta_phi_m(VisTau_pt_evt[j_t], VisTau_eta_evt[j_t],
                                                         VisTau_phi_evt[j_t], VisTau_mass_evt[j_t],)
@@ -191,7 +241,7 @@ def main():
                     if deltaR_jj < 0.1:
                         print(f"jet with index {j_g} is a tau jet: deltaR_jj = {deltaR_jj}")
                         index_list.append(j_g)
-
+            '''
 
             print(f"\n------------------------------------------ before mask ------------------------------------------")
             print(f"electron, muon per event = {e_counter}, {mu_counter}")
@@ -209,7 +259,6 @@ def main():
             GJet_eta_evt  = ak.where(mask, 0, GJet_eta_evt)
             GJet_phi_evt  = ak.where(mask, 0, GJet_phi_evt)
             GJet_mass_evt = ak.where(mask, 0, GJet_mass_evt)
-
 
             print(f"\n------------------------------------------ after mask ------------------------------------------")
             print(f"electron, muon per event = {e_counter}, {mu_counter}")
@@ -236,19 +285,18 @@ def main():
 
                 if GJet_pt_evt[e1] == 0:    continue                #avoid 'cleaned' jets
                 
-                j1_vec = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[e1], GJet_eta_evt[e1], 
-                                                               GJet_phi_evt[e1], GJet_mass_evt[e1])
+                j1_vec = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[e1], GJet_eta_evt[e1], GJet_phi_evt[e1], GJet_mass_evt[e1])
                     
                 for e2 in range(n_jets_evt):
                     if e2 <= e1:    continue                         #avoid duplicate pairs
 
                     print(f"jet pair indices = ({e1}, {e2})")
-                    j2_vec = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[e2], GJet_eta_evt[e2], 
-                                                               GJet_phi_evt[e2], GJet_mass_evt[e2])
+                    j2_vec = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[e2], GJet_eta_evt[e2], GJet_phi_evt[e2], GJet_mass_evt[e2])
 
                     vec_jj = j1_vec + j2_vec
                     mass_jj = vec_jj.M
                     print(f"jj invariant mass = {mass_jj}")
+                    
                     tollerance = 15
                     if abs(mass_jj - 125) < tollerance:
                         jet_candidates += 1
@@ -268,4 +316,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
