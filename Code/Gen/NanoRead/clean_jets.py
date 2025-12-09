@@ -34,8 +34,8 @@ def is_b_hadron(pdgId):                     #return True if b hadron in event ->
     return abs(pdgId) in b_hadrons
 
 def mother_pdg(j, midx_evt, pdg_evt):
-                m = int(midx_evt[j])
-                return int(pdg_evt[m]) if m >= 0 else None
+    m = int(midx_evt[j])
+    return int(pdg_evt[m]) if m >= 0 else None
 
 def higgs_decay(n, pdg_evt, midx_evt):
     daughters_h = []
