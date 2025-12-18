@@ -9,7 +9,7 @@ from tabulate import tabulate
 
 def main():
     df_tot = ROOT.RDataFrame("df_bbar", "h_bb.root")
-
+    
     df_tot = (df_tot
         .Define("lep_vec", """
             TLorentzVector v;
@@ -37,7 +37,7 @@ def main():
 
     #------------------------------------------------ ZH/WH Cutflow -----------------------------------------------
     
-     ##############################################
+    ##############################################
     # Define cuts
     ##############################################
 
@@ -60,14 +60,14 @@ def main():
                            ? antilep_vec : lep_vec;
                """)
                .Define("cut0_WH", "event_type == \"W+/-\"")
-               .Define("cut_e_mu_WH", '(event_type == \"W+/-\") && (VB_decay != "tau v")')
+               .Define("cut_e_mu_WH", '(event_type == \"W+/-\") && (VB_decay != "tau v") && ((VB_decay != ""))')
                .Define("cut1_WH", " (event_type == \"W+/-\") && (vec_V.Pt() > 150) ")
                .Define("cut2_WH", " (event_type == \"W+/-\") && ((d1_vec.Pt() > 25) && (d2_vec.Pt() > 25))")
                .Define("cut3_WH", "(event_type == \"W+/-\") && (vec_h.Pt() > 100)")
                .Define("cut4_WH", "(event_type == \"W+/-\") && (charged_lep.DeltaPhi(neutrino) < 2.0)")
                .Define("cut5_WH", "(event_type == \"W+/-\") && (vec_V.DeltaPhi(vec_h) > 2.5)")
                )
-            
+       
 
     ##############################################
     # Filter dataframe
@@ -105,11 +105,13 @@ def main():
     report_array_zh = []
 
     n_tot = df_wh_f.Count().GetValue()
+    print(f"n_tot = {n_tot}")
     pass_prec = n_tot
     cut_list = ["cut0", "cut_e_mu", "cut1", "cut2", "cut3", "cut4", "cut5"]
 
     i = 0
     for cut in rep_wh:
+        print(f"cut = {str(cut.GetName())}, pass preedent = {pass_prec}")
         cut_from_list = cut_list[i] + "_WH"
         name = cut.GetName()
         N_evt = cut.GetPass()
@@ -192,6 +194,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+    
 
     '''
     df_tot = df_tot.Define("cut_e_mu", '(VB_decay != "v v~ / tau+ tau-") && (VB_decay != "tau v")')
