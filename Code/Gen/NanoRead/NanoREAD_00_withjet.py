@@ -147,6 +147,7 @@ def read_file(filename, maxEvents=50):
 
         lep_vec = antilep_vec = build_4vec(0,0,0,0)
         d1_vec  = d2_vec = build_4vec(0,0,0,0)
+        MET = build_4vec(0,0,0,0)
         decay      = "No Higgs"
         event_type = "Z/W"
         VB_decay = ""
@@ -192,7 +193,8 @@ def read_file(filename, maxEvents=50):
                 event_type = "W+/-"
                 child_indices = [k for k in range(int(t.nGenPart)) if int(t.GenPart_genPartIdxMother[k]) == j]      #get daughters' indices
                 lep_indices = [k for k in child_indices if abs(int(t.GenPart_pdgId[k])) in [11, 12, 13, 14]]        #filter lepton indices
-
+                MET = build_4vec(t.MET_pt, 0, t.MET_phi, 0)
+                
                 if len(lep_indices) == 2:
 
                     for k in lep_indices:
@@ -249,8 +251,9 @@ def read_file(filename, maxEvents=50):
                             daughters.append(pdg_to_Name(int(t.GenPart_pdgId[k])))
                             kin.append(build_4vec(t.GenPart_pt[k], t.GenPart_eta[k], t.GenPart_phi[k], t.GenPart_mass[k]))
 
-                    decay = " + ".join(daughters)
+                    
                     if len(kin) > 1:
+                        decay = " + ".join(daughters)
                         d1_vec = kin[0]
                         d2_vec = kin[1]
                     print(f"daughters = {daughters} // GenPart kinematic info = {kin}")
@@ -261,6 +264,7 @@ def read_file(filename, maxEvents=50):
                "event": i,
                "lep_vec": lep_vec,
                "antilep_vec": antilep_vec,
+               "MET": MET,
                "d1_vec": d1_vec,
                "d2_vec": d2_vec,
                "h_decay": decay,
