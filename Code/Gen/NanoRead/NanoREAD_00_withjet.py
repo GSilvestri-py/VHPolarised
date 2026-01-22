@@ -84,52 +84,173 @@ def process_outline(tree):
     return
 
 
-def clean_jets(lep_indices, t):
-            cleaned_list = []   #list with b jet candidate index
+def get_z_daughters(j, t):
 
-            for k in lep_indices:   
-                pid = int(t.GenPart_pdgId[k])   #get particle ID
-                if abs(pid) in [11, 13]:
-                    lep_vec = build_4vec_from_pt_eta_phi_m(t.GenPart_pt[k], t.GenPart_eta[k], t.GenPart_phi[k], t.GenPart_mass[k])
+    daughters_VB = []
+    lep_vec = antilep_vec = MET = build_4vec(0,0,0,0)
 
-                    for jet_idx in range(t.nGenJet):
-                        jet_vec = build_4vec_from_pt_eta_phi_m(t.GenJet_pt[jet_idx], t.GenJet_eta[jet_idx], t.GenJet_phi[jet_idx], t.GenJet_mass[jet_idx])
+    child_indices = [k for k in range(int(t.nGenPart)) if int(t.GenPart_genPartIdxMother[k]) == j]      #get daughters' indices
+    lep_indices = [k for k in child_indices if abs(int(t.GenPart_pdgId[k])) in [11, 13]]                #filter lepton indices
 
-                        deltaR_lj = lep_vec.deltaR(jet_vec)
-                        if deltaR_lj < 0.1:
-                            print(f"jet {jet_idx} is a charged lepton jet: ΔR = {deltaR_lj}")
-                        else:
-                            cleaned_list.append(jet_idx)  #save index if candidate b jet
+    if len(lep_indices) == 2:
+        for k in lep_indices:
+            pid = int(t.GenPart_pdgId[k])
+            daughters_VB.append(pdg_to_Name(pid))
+            vec = build_4vec(t.GenPart_pt[k], t.GenPart_eta[k], t.GenPart_phi[k], t.GenPart_mass[k])
 
-            return cleaned_list
+            if pid > 0:
+                lep_vec = vec
+            elif pid < 0:
+                antilep_vec = vec
 
-def get_b_jets(index_list, t):
+    return lep_vec, antilep_vec, MET, daughters_VB, lep_indices
 
-    kin_info = []
 
-    for jet_idx in index_list:
-        j1_vec = build_4vec_from_pt_eta_phi_m(t.GenJet_pt[jet_idx], t.GenJet_eta[jet_idx], t.GenJet_phi[jet_idx], t.GenJet_mass[jet_idx])
+def get_w_daughters(j, t):
 
-        for jet2_idx in index_list:
-            if jet2_idx <= jet_idx:    continue
+    daughters_VB = []
+    lep_vec = antilep_vec = MET = build_4vec(0,0,0,0)
 
-            print(f"jet pair indices = ({jet_idx}, {jet2_idx})")
-            j2_vec = build_4vec_from_pt_eta_phi_m(t.GenJet_pt[jet2_idx], t.GenJet_eta[jet2_idx], t.GenJet_phi[jet2_idx], t.GenJet_mass[jet2_idx])
-
-            vec_jj = j1_vec + j2_vec
-            mass_jj = vec_jj.M
-            print(f"jj invariant mass = {mass_jj}")
-
-            tollerance = 15
-            if abs(mass_jj - 125) < tollerance:
-                print(f"> possible jet {jet_idx}-{jet2_idx} from h decay b pair\n")
-                kin_info.append(build_4vec(t.GenJet_pt[jet_idx], t.GenJet_eta[jet_idx], t.GenJet_phi[jet_idx], t.GenJet_mass[jet_idx]))
-                kin_info.append(build_4vec(t.GenJet_pt[jet2_idx], t.GenJet_eta[jet2_idx], t.GenJet_phi[jet2_idx], t.GenJet_mass[jet2_idx]))
+    child_indices = [k for k in range(int(t.nGenPart)) if int(t.GenPart_genPartIdxMother[k]) == j]      #get daughters' indices
+    lep_indices = [k for k in child_indices if abs(int(t.GenPart_pdgId[k])) in [11, 13]]        #filter lepton indices
+    MET = build_4vec(t.GenMET_pt, 0, t.GenMET_phi, 0)
     
+    if len(lep_indices) == 2:
+
+        for k in lep_indices:
+            pid = int(t.GenPart_pdgId[k])
+            daughters_VB.append(pdg_to_Name(pid))
+            vec = build_4vec(t.GenPart_pt[k], t.GenPart_eta[k], t.GenPart_phi[k], t.GenPart_mass[k])
+
+            if pid > 0:
+                lep_vec = vec
+            elif pid < 0:
+                antilep_vec = vec
+    
+    return lep_vec, antilep_vec, MET, daughters_VB, lep_indices
+
+
+def get_VB_daughters(t):
+    event_type = "Z/W"
+
+    for j in range(int(t.nGenPart)):
+        pid = int(t.GenPart_pdgId[j])
+        mother = int(t.GenPart_pdgId[t.GenPart_genPartIdxMother[j]]) if t.GenPart_genPartIdxMother[j] >= 0 else None
+
+        if pid == 23 and mother != 25:
+            event_type = "Z"
+            lep_vec, antilep_vec, MET, daughters_VB, lep_indices = get_z_daughters(j, t)
+            
+
+        if abs(pid) == 24 and mother != 25:
+            event_type = "W+/-"
+            lep_vec, antilep_vec, MET, daughters_VB, lep_indices = get_w_daughters(j, t)
+
+    return lep_vec, antilep_vec, MET, event_type, daughters_VB, lep_indices
+
+'''
+def clean_jets(lep_indices, t):
+    cleaned_list = []   #list with b jet candidate index
+
+    for k in lep_indices:   
+        pid = int(t.GenPart_pdgId[k])   #get particle ID
+        if abs(pid) in [11, 13]:
+            lep_vec = build_4vec_from_pt_eta_phi_m(t.GenPart_pt[k], t.GenPart_eta[k], t.GenPart_phi[k], t.GenPart_mass[k])
+
+            for jet_idx in range(t.nGenJet):
+                jet_vec = build_4vec_from_pt_eta_phi_m(t.GenJet_pt[jet_idx], t.GenJet_eta[jet_idx], t.GenJet_phi[jet_idx], t.GenJet_mass[jet_idx])
+
+                deltaR_lj = lep_vec.deltaR(jet_vec)
+                if deltaR_lj < 0.1:
+                    print(f"jet {jet_idx} is a charged lepton jet: ΔR = {deltaR_lj}")
+                else:
+                    cleaned_list.append(jet_idx)  #save index if candidate b jet
+
+    return cleaned_list
+'''
+
+def get_b_jets(pair_inv_mass_list, t):
+    '''
+    - read partonflavour -> identify b jets
+        - if less than two jets -> jet pt under threshold -> save only one
+    - if t least two jets:
+        - if two jets -> found b pair
+        - if more:
+            - check invariant mass and/or pt
+    '''
+    idx_list, kin_info = [], []
+    for idx in range(t.nGenJet):
+
+        if abs(int(t.GenJet_hadronFlavour[idx])) == 5:
+            idx_list.append(idx)  #b idx list
+
+    if len(idx_list) < 2:
+        print("Less than two jet for this event -> pt under threshold")
+        kin_info.append(vector.obj(px = 0, py = 0, pz = 0, E = 0))
+        kin_info.append(vector.obj(px = 0, py = 0, pz = 0, E = 0))
+
+    if len(idx_list) == 2:
+        j1 = build_4vec_from_pt_eta_phi_m(t.GenJet_pt[idx_list[0]], t.GenJet_eta[idx_list[0]], t.GenJet_phi[idx_list[0]], t.GenJet_mass[idx_list[0]])
+        j2 = build_4vec_from_pt_eta_phi_m(t.GenJet_pt[idx_list[1]], t.GenJet_eta[idx_list[1]], t.GenJet_phi[idx_list[1]], t.GenJet_mass[idx_list[1]])
+        kin_info.append(j1)
+        kin_info.append(j2)
+        pair_inv_mass_list.append((j1+j2).M)
+    '''
+    if len(idx_list) > 2:
+        set_diff = 100
+
+        for id1 in idx_list:
+            pt_id1 = t.GenJet_pt[id1]
+
+            for id2 in idx_list:
+                if id2 != id1:
+                    j1 = build_4vec_from_pt_eta_phi_m(t.GenJet_pt[id1], t.GenJet_eta[id1], t.GenJet_phi[id1], t.GenJet_mass[id1])
+                    j2 = build_4vec_from_pt_eta_phi_m(t.GenJet_pt[id2], t.GenJet_eta[id2], t.GenJet_phi[id2], t.GenJet_mass[id2])
+                    inv_m = (j1+j2).M
+
+                    abs_diff = abs(inv_m - 125)
+                    if abs_diff < set_diff:
+                        set_diff = abs_diff
+                        inv_mass = inv_m
+
+        pair_inv_mass_list.append(inv_mass)
+    '''
+
+    if len(idx_list) > 2:
+        higher_pt = 0
+
+        for id1 in idx_list:
+            pt_id1 = t.GenJet_pt[id1]
+
+            for id2 in idx_list:
+                if id2 != id1:
+                    pt_id2 = t.GenJet_pt[id2]
+                    pt_sum = pt_id1 + pt_id2
+
+                    if pt_sum > higher_pt:
+                        higher_pt = pt_sum
+                        pair = (id1, id2)
+        
+        idx1, idx2 = pair
+        j1 = build_4vec_from_pt_eta_phi_m(t.GenJet_pt[idx1], t.GenJet_eta[idx1], t.GenJet_phi[idx1], t.GenJet_mass[idx1])
+        j2 = build_4vec_from_pt_eta_phi_m(t.GenJet_pt[idx2], t.GenJet_eta[idx2], t.GenJet_phi[idx2], t.GenJet_mass[idx2])
+        kin_info.append(j1)
+        kin_info.append(j2)
+        inv_m = (j1+j2).M
+        pair_inv_mass_list.append(inv_m)
+
+        print(f"pair with higher pt = {pair} and invariant mass = {inv_m}")
+
     return kin_info
+        
 
 
-def read_file(filename, maxEvents=50):
+def get_max_index(list):
+    max_v = max(list)
+    return list.index(max_v)
+
+
+def read_file(filename, maxEvents=450):
     file = ROOT.TFile.Open(filename)
     t = file.Get("Events")
 
@@ -137,19 +258,20 @@ def read_file(filename, maxEvents=50):
         print("No Events tree in", filename)
         return pd.DataFrame()
 
-    rows = []
-    for i in range(30):
-        #t.GetEntries()):
+    rows, inv_mass_list = [], []
+    ditau_mass_list = []
+    counter_empy_dict = 0
+    counter_b_inevent = 0
+    counter_0_jets, counter_1_jet, counter_2_jet, counter_2plus_jets = 0, 0, 0, 0
+
+    for i in range(40):
 
         print(f"\n================================================================================ Event {i} ================================================================================")
 
         t.GetEntry(i)
 
-        lep_vec = antilep_vec = build_4vec(0,0,0,0)
-        d1_vec  = d2_vec = build_4vec(0,0,0,0)
-        MET = build_4vec(0,0,0,0)
-        decay      = "No Higgs"
-        event_type = "Z/W"
+        d1_vec   = d2_vec = build_4vec(0,0,0,0)
+        decay    = "No Higgs"
         VB_decay = ""
 
         is_b_inevent = False
@@ -165,48 +287,9 @@ def read_file(filename, maxEvents=50):
                 print(f">quark b in event")
 
         #-------------------------------------------------- VB decay - GenPart --------------------------------------------------
-
-        daughters_VB = []
-
-        for j in range(int(t.nGenPart)):
-            pid = int(t.GenPart_pdgId[j])
-            mother = int(t.GenPart_pdgId[t.GenPart_genPartIdxMother[j]]) if t.GenPart_genPartIdxMother[j] >= 0 else None
-
-            if pid == 23 and mother != 25:
-                event_type = "Z"
-                child_indices = [k for k in range(int(t.nGenPart)) if int(t.GenPart_genPartIdxMother[k]) == j]      #get daughters' indices
-                lep_indices = [k for k in child_indices if abs(int(t.GenPart_pdgId[k])) in [11, 13]]                #filter lepton indices
-
-                if len(lep_indices) == 2:
-
-                    for k in lep_indices:
-                        pid = int(t.GenPart_pdgId[k])
-                        daughters_VB.append(pdg_to_Name(pid))
-                        vec = build_4vec(t.GenPart_pt[k], t.GenPart_eta[k], t.GenPart_phi[k], t.GenPart_mass[k])
-
-                        if pid > 0:
-                            lep_vec = vec
-                        elif pid < 0:
-                            antilep_vec = vec
-
-            if abs(pid) == 24 and mother != 25:
-                event_type = "W+/-"
-                child_indices = [k for k in range(int(t.nGenPart)) if int(t.GenPart_genPartIdxMother[k]) == j]      #get daughters' indices
-                lep_indices = [k for k in child_indices if abs(int(t.GenPart_pdgId[k])) in [11, 12, 13, 14]]        #filter lepton indices
-                MET = build_4vec(t.MET_pt, 0, t.MET_phi, 0)
-                
-                if len(lep_indices) == 2:
-
-                    for k in lep_indices:
-                        pid = int(t.GenPart_pdgId[k])
-                        daughters_VB.append(pdg_to_Name(pid))
-                        vec = build_4vec(t.GenPart_pt[k], t.GenPart_eta[k], t.GenPart_phi[k], t.GenPart_mass[k])
-
-                        if pid > 0:
-                            lep_vec = vec
-                        elif pid < 0:
-                            antilep_vec = vec
-       
+ 
+        lep_vec, antilep_vec, MET, event_type, daughters_VB, lep_indices = get_VB_daughters(t)
+        
         if len(daughters_VB) == 0:
             if event_type == "Z":
                 VB_decay = "v v~ / tau+ tau-"
@@ -218,19 +301,49 @@ def read_file(filename, maxEvents=50):
         #--------------------------------------------------- h decay - GenPart ---------------------------------------------------
 
         daughters, kin = [], []
+        bjet_idx_list = []
         
         if int(t.nGenVisTau) == 2:
+            print(f"GenVisTau_genPartIdxMother = {t.GenVisTau_genPartIdxMother}")
             kin.append(build_4vec(t.GenVisTau_pt[0], t.GenVisTau_eta[0], t.GenVisTau_phi[0], t.GenVisTau_mass[0]))
             kin.append(build_4vec(t.GenVisTau_pt[1], t.GenVisTau_eta[1], t.GenVisTau_phi[1], t.GenVisTau_mass[1]))
+            j1 = build_4vec_from_pt_eta_phi_m(t.GenVisTau_pt[0], t.GenVisTau_eta[0], t.GenVisTau_phi[0], t.GenVisTau_mass[0])
+            j2 = build_4vec_from_pt_eta_phi_m(t.GenVisTau_pt[1], t.GenVisTau_eta[1], t.GenVisTau_phi[1], t.GenVisTau_mass[1])
+            inv_mass = (j1+j2).M
+            ditau_mass_list.append(inv_mass)
             daughters.append("tau+")
             daughters.append("tau-")
 
         elif is_b_inevent:
-            clean_list = clean_jets(lep_indices, t)
+            counter_b_inevent += 1
             daughters.append("b")
             daughters.append("bbar")
-            kin = get_b_jets(clean_list, t)
-          
+
+            print(f"n GenJets = {int(t.nGenJet)}")
+            print(f"t.GenJet_partonFlavour = {list(t.GenJet_hadronFlavour)}")
+            print(f"t.GenJet_pt = {list(t.GenJet_pt)}")
+
+            for j in range(t.nGenJet):
+                print(f"idx = {j}")
+                if abs(int(t.GenJet_hadronFlavour[j])) == 5:
+                    bjet_idx_list.append(j)
+
+            if len(bjet_idx_list) == 0:
+                counter_0_jets += 1
+                print(f"no bjet in GenJet_hadronFlavour")
+
+            if len(bjet_idx_list) == 1:
+                counter_1_jet += 1
+                print(f"one bjet found in event")
+            
+            if len(bjet_idx_list) == 2:
+                counter_2_jet += 1
+
+            if len(bjet_idx_list) > 2:
+                counter_2plus_jets += 1
+            
+            kin = get_b_jets(inv_mass_list, t)
+            
         if len(kin) >= 2:
             decay = " + ".join(daughters)
             d1_vec = kin[0]
@@ -241,8 +354,7 @@ def read_file(filename, maxEvents=50):
             if int(t.GenPart_pdgId[j]) == 25:
 
                 #get daughters' indices
-                child_indices = [k for k in range(int(t.nGenPart))
-                                 if int(t.GenPart_genPartIdxMother[k]) == j]
+                child_indices = [k for k in range(int(t.nGenPart)) if int(t.GenPart_genPartIdxMother[k]) == j]
 
                 #work on particles pair decays
                 if len(child_indices) > 1:
@@ -277,8 +389,13 @@ def read_file(filename, maxEvents=50):
             print(f"{key}: {value}")
             
         rows.append(row)
+    print(f"n 0 jets = {counter_0_jets}")
+    print(f"n 1 jets = {counter_1_jet}")
+    print(f"n 2 jets = {counter_2_jet}")
+    print(f"2+ jets  = {counter_2plus_jets}")
+    print(f"bb events = {counter_b_inevent}")
 
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows), counter_empy_dict, inv_mass_list, ditau_mass_list
 
 
 def expand_columns_vectors(df):
@@ -298,7 +415,48 @@ def expand_columns_vectors(df):
 
 
 def main():
-    df = read_file("nanoLatino_ZH_H_ZToLL_ZL__part0.root")
+
+    #pt jets histogram    
+    df, counter, mass_list, ditau_mass_list = read_file("nanoLatino_ZH_H_ZToLL_ZL__part108.root")
+    '''
+    print((ditau_mass_list))
+    h = ROOT.TH1D("h", "b jet invariant mass", 30, min(mass_list), max(mass_list))
+    for m in mass_list:
+        h.Fill(m)
+    h.GetXaxis().SetTitle("Invariant mass [GeV]")
+    h.GetYaxis().SetTitle("Counts")
+    canvas = ROOT.TCanvas("c", "c", 1400, 1000)
+    h.Draw()
+    canvas.SaveAs("jet_inv_mass.png")
+
+    h_tau = ROOT.TH1D("h", "tau jet invariant mass", 30, min(ditau_mass_list), max(ditau_mass_list))
+    for m in ditau_mass_list:
+        h_tau.Fill(m)
+    h_tau.GetXaxis().SetTitle("Invariant mass [GeV]")
+    h_tau.GetYaxis().SetTitle("Counts")
+    c = ROOT.TCanvas("canvas", "canvas", 1400, 1000)
+    h_tau.Draw()
+    c.SaveAs("taujet_inv_mass.png")
+
+    df = ROOT.RDataFrame("Events", "nanoLatino_ZH_H_ZToLL_ZL__part108.root")
+    df = df.Define("pt_jets", "GenJet_pt")\
+           .Define("eta_jets", "GenJet_eta")
+    h = df.Histo1D( "pt_jets")
+    canvas = ROOT.TCanvas("canvas", "canvas", 1400, 800)
+    h.GetXaxis().SetRangeUser(0, 200)  
+
+    h.Draw()
+    canvas.Draw()
+    canvas.SaveAs("genjet_pt.png")
+
+    h = df.Histo1D("eta_jets")
+    canvas = ROOT.TCanvas("c", "c", 1440, 1000)
+    h.Draw()
+    canvas.Draw()
+    canvas.SaveAs("genjet_eta.png")
+    '''
+
+    
     df.to_pickle("events_withjets.pkl")
 
     print("\nShowing Pandas dataframe")
@@ -309,9 +467,7 @@ def main():
     print(rdf.head())
 
     #Pd dataframe --> ROOT df
-    for col in df.columns:
-        print(col, set(df[col].apply(type)))
-
+    print(counter)
     root_df = ROOT.RDF.FromPandas(rdf)
     root_df.Snapshot("Events", "file_withjets.root")
 
