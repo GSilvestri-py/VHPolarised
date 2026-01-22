@@ -115,7 +115,7 @@ def get_VB_daughters(pdg_evt, midx_evt, pt_evt, eta_evt, phi_evt, mass_evt, pt_M
     return lep_vec, antilep_vec, MET, event_type, daughters_VB, lep_indices
 
 
-
+'''
 def clean_jets(lep_indices, pdg_evt, pt_evt, eta_evt, phi_evt, mass_evt,
                 n_jets_evt, GJet_pt_evt, GJet_eta_evt, GJet_phi_evt, GJet_mass_evt):
 
@@ -175,8 +175,50 @@ def get_b_jets(current_file, index_list, GJet_pt_evt, GJet_eta_evt, GJet_phi_evt
         max_idx = get_max_index(ptjj_selected)
         kin_info = kin_info[max_idx*2:(max_idx*2+2)]
     return kin_info
+'''
 
+def get_b_jets(n_jets_evt, GJet_h_flav_evt, GJet_pt_evt, GJet_eta_evt, GJet_phi_evt, GJet_mass_evt):
 
+    idx_list, kin_info = [], []
+    for idx in range(n_jets_evt):
+        if abs(int(GJet_h_flav_evt[idx])) == 5:
+            idx_list.append(idx)
+
+    if len(idx_list) < 2:
+        kin_info.append(vector.obj(px = 0, py = 0, pz = 0, E = 0))
+        kin_info.append(vector.obj(px = 0, py = 0, pz = 0, E = 0))
+
+    if len(idx_list) == 2:
+        j1 = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[idx_list[0]], GJet_eta_evt[idx_list[0]], GJet_phi_evt[idx_list[0]], GJet_mass_evt[idx_list[0]])
+        j2 = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[idx_list[1]], GJet_eta_evt[idx_list[1]], GJet_phi_evt[idx_list[1]], GJet_mass_evt[idx_list[1]])
+        kin_info.append(j1)
+        kin_info.append(j2)
+        #pair_inv_mass_list.append((j1+j2).M)
+
+    if len(idx_list) > 2:
+        higher_pt = 0
+
+        for id1 in idx_list:
+            pt_id1 = GJet_pt_evt[id1]
+
+            for id2 in idx_list:
+                if id2 != id1:
+                    pt_id2 =  GJet_pt_evt[id2]
+                    pt_sum = pt_id1 + pt_id2
+
+                    if pt_sum > higher_pt:
+                        higher_pt = pt_sum
+                        pair = (id1, id2)
+
+        idx1, idx2 = pair
+        j1 = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[idx1], GJet_eta_evt[idx1], GJet_phi_evt[idx1], GJet_mass_evt[idx1])
+        j2 = build_4vec_from_pt_eta_phi_m(GJet_pt_evt[idx2], GJet_eta_evt[idx2], GJet_phi_evt[idx2], GJet_mass_evt[idx2])
+        kin_info.append(j1)
+        kin_info.append(j2)  
+        #inv_m = (j1+j2).M
+        #pair_inv_mass_list.append(inv_m)
+
+    return kin_info
 
 def get_max_index(list):
     max_v = max(list)
@@ -290,31 +332,13 @@ def read_files(file_list, output_root):
                     daughters.append("tau-")
                     kin.append(build_4vec(VisTau_pt_evt[0], VisTau_eta_evt[0], VisTau_phi_evt[0], VisTau_mass_evt[0]))
                     kin.append(build_4vec(VisTau_pt_evt[1], VisTau_pt_evt[1], VisTau_phi_evt[1], VisTau_mass_evt[1]))
-                    
+                
                 elif is_b_inevent:
                     daughters.append("b")
                     daughters.append("bbar")
 
-                    if n_jets_evt > 2:  #require at least two jets
-                        clean_list = clean_jets(lep_indices, pdg_evt, pt_evt, eta_evt, phi_evt, mass_evt,
-                                            n_jets_evt, GJet_pt_evt, GJet_eta_evt, GJet_phi_evt, GJet_mass_evt)
+                    kin = get_b_jets(n_jets_evt, GJet_h_flav_evt, GJet_pt_evt, GJet_eta_evt, GJet_phi_evt, GJet_mass_evt)
 
-                        if len(clean_list) < 2:     #less than two jets remaining after clean up -> assume chance overlap
-                            clean_list = np.arange(0, n_jets_evt)
-
-                        kin = get_b_jets(filename, clean_list, GJet_pt_evt, GJet_eta_evt, GJet_phi_evt, GJet_mass_evt)
-
-
-                    elif n_jets_evt == 2:   #avoid charged leptonic jets if only two jets in event
-                        clean_list = np.arange(0, n_jets_evt)
-                        kin = get_b_jets(filename, clean_list, GJet_pt_evt, GJet_eta_evt, GJet_phi_evt, GJet_mass_evt)
-
-                    elif n_jets_evt < 2:     #only one jet or no jets in event
-                        clean_list, kin = [], []    #no kin info found for this event
-                        daughters = []              #empty list
-                        daughters.append("?")       #add to avoid GenPart info later
-                        daughters.append("?")
-                    
                 if len(kin) >= 2:
                     decay = " + ".join(daughters)
                     d1_vec = kin[0]
