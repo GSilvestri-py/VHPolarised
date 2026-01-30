@@ -264,7 +264,7 @@ def read_file(filename, maxEvents=450):
     counter_b_inevent = 0
     counter_0_jets, counter_1_jet, counter_2_jet, counter_2plus_jets = 0, 0, 0, 0
 
-    for i in range(40):
+    for i in range(450):
 
         print(f"\n================================================================================ Event {i} ================================================================================")
 
@@ -314,7 +314,9 @@ def read_file(filename, maxEvents=450):
             daughters.append("tau+")
             daughters.append("tau-")
 
-        elif is_b_inevent:
+        #elif is_b_inevent:
+        for j in range(len(t.LHEPart)):
+            if abs(int(t.LHEPart_pdgId)) == 5:
             counter_b_inevent += 1
             daughters.append("b")
             daughters.append("bbar")
