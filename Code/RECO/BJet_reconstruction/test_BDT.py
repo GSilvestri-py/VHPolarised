@@ -67,10 +67,13 @@ def objective(trial, X_train, y_train, X_valid, y_valid):
 
     return loss
 
-def run_optuna(X_train, y_train, X_valid, y_valid, n_trials=50):
+def run_optuna(config, X_train, y_train, X_valid, y_valid, n_trials=50):
 
-    study = optuna.create_study(study_name="bdt_opt",
-                                storage="sqlite:///optuna_bdt.db",
+    storage = config["optuna"]["storage"]
+    study_name = config["optuna"]["storage"]
+
+    study = optuna.create_study(study_name=study_name,
+                                storage=storage,
                                 load_if_exists=True,
                                 direction="minimize"
                                 )
