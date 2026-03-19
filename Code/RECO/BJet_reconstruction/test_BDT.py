@@ -70,7 +70,7 @@ def objective(trial, X_train, y_train, X_valid, y_valid):
 def run_optuna(config, X_train, y_train, X_valid, y_valid, n_trials=50):
 
     storage = config["optuna"]["storage"]
-    study_name = config["optuna"]["storage"]
+    study_name = config["optuna"]["study_name"]
 
     study = optuna.create_study(study_name=study_name,
                                 storage=storage,
@@ -129,7 +129,7 @@ def read_samples (config):
     return var_names, X_train, X_valid, X_test, y_train, y_valid, y_test
 
 
-def bdt_training(X_train, y_train, X_valid, y_valid, out_path):
+def bdt_training(config, X_train, y_train, X_valid, y_valid, out_path):
     '''
     model = xgb.XGBClassifier(
                             tree_method="hist",
@@ -158,7 +158,7 @@ def bdt_training(X_train, y_train, X_valid, y_valid, out_path):
               verbose = True)
     '''
     print("Running optuna for best parameters research")
-    best_params = run_optuna(X_train, y_train, X_valid, y_valid)
+    best_params = run_optuna(config, X_train, y_train, X_valid, y_valid)
 
     best_params.update({
                         "tree_method": "hist",
@@ -432,7 +432,7 @@ def main () :
 
     var_names, X_train, X_valid, X_test, y_train, y_valid, y_test = read_samples(config)
 
-    model = bdt_training(X_train, y_train, X_valid, y_valid, out_path)
+    model = bdt_training(config, X_train, y_train, X_valid, y_valid, out_path)
 
     bdt_training_output(model, X_test, y_test, out_path, var_names)
 
