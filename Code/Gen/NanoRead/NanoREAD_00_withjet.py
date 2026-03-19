@@ -264,7 +264,7 @@ def read_file(filename, maxEvents=450):
     counter_b_inevent = 0
     counter_0_jets, counter_1_jet, counter_2_jet, counter_2plus_jets = 0, 0, 0, 0
 
-    for i in range(450):
+    for i in range(t.GetEntries()):
 
         print(f"\n================================================================================ Event {i} ================================================================================")
 
